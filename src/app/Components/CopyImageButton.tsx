@@ -2,14 +2,15 @@
 
 import { useRef } from 'react';
 
+type TextItem = { xPct: number; yPct: number; text: string };
+
 type CopyImageButtonProps = {
     imageUrl: string;
-    topText: string;
-    bottomText: string;
+    texts: TextItem[];
     disabled?: boolean;
-}
+};
 
-export default function CopyImageButton({ imageUrl, topText, bottomText, disabled = false }: CopyImageButtonProps) {
+export default function CopyImageButton({ imageUrl, texts, disabled = false }: CopyImageButtonProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const imgRef = useRef<HTMLImageElement>(null);
 
@@ -27,24 +28,18 @@ export default function CopyImageButton({ imageUrl, topText, bottomText, disable
         // Draw the image
         ctx.drawImage(imgRef.current, 0, 0);
         
-        // Add text styling
-        ctx.font = 'bold 48px Impact';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = 'white';
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 4;
-        
-        // Draw top text with outline
-        const x = canvas.width / 2;
-        const topY = 60;
-        
-        ctx.strokeText(topText, x, topY);
-        ctx.fillText(topText, x, topY);
-        
-        // Draw bottom text with outline
-        const bottomY = canvas.height - 30;
-        ctx.strokeText(bottomText, x, bottomY);
-        ctx.fillText(bottomText, x, bottomY);
+        // Draw user-added texts
+        texts.forEach(item => {
+            ctx.font = 'bold 48px Impact';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 4;
+            const x = item.xPct * canvas.width;
+            const y = item.yPct * canvas.height;
+            ctx.strokeText(item.text, x, y);
+            ctx.fillText(item.text, x, y);
+        });
 
         try {
             // Convert canvas to blob and copy to clipboard

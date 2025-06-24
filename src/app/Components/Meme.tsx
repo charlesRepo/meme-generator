@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import CopyImageButton from "./CopyImageButton"
+import GenerateMemeButton from "./GenerateMemeButton"
 
 type MemeTemplate = {
     id: string;
@@ -14,13 +15,13 @@ type MemeTemplate = {
 
 export default function Meme() {
     const [meme, setMeme] = useState({
-        topText: '',
-        bottomText: '',
         randomImage: 'https://i.imgflip.com/1bij.jpg', // Default meme
         width: 0,
         height: 0
     });
     const [allMemes, setAllMemes] = useState<MemeTemplate[]>([]);
+    type TextItem = { id: string; xPct: number; yPct: number; text: string };
+    const [texts, setTexts] = useState<TextItem[]>([]);
 
     useEffect(() => {
         // Fetch meme templates from Imgflip API
@@ -76,37 +77,23 @@ export default function Meme() {
         }));
     }
 
+    const handleImageClick = (e: React.MouseEvent<HTMLImageElement>) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const xPct = (e.clientX - rect.left) / rect.width;
+        const yPct = (e.clientY - rect.top) / rect.height;
+        setTexts(prev => [...prev, { id: crypto.randomUUID(), xPct, yPct, text: 'Text' }]);
+    }
 
     return (
         <article className="w-full lg:w-1/2 mx-auto p-6 rounded-lg">
             <form className="flex flex-col gap-4 w-full">
-                <button 
-                    type="button"
-                    onClick={getMemeImage}
-                    className="w-full bg-gradient-to-r from-purple-600 to-blue-500 text-white font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity"
-                >
-                    New Image 🖼️
-                </button>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <input 
-                        type="text"
-                        placeholder="Top text"
-                        className="p-2 border border-gray-300 rounded text-black"
-                        value={meme.topText}
-                        onChange={(e) => setMeme(prev => ({...prev, topText: e.target.value}))}
-                    />
-                    <input 
-                        type="text"
-                        placeholder="Bottom text"
-                        className="p-2 border border-gray-300 rounded text-black"
-                        value={meme.bottomText}
-                        onChange={(e) => setMeme(prev => ({...prev, bottomText: e.target.value}))}
-                    />
-                </div>
+                <GenerateMemeButton onClick={getMemeImage} />
+                
+                <p className="text-center text-gray-400 italic">Click on the image and write</p>
+                
                 <CopyImageButton 
                         imageUrl={meme.randomImage}
-                        topText={meme.topText}
-                        bottomText={meme.bottomText}
+                        texts={texts}
                         disabled={!meme.randomImage}
                     />
             </form>
@@ -117,14 +104,31 @@ export default function Meme() {
                         <img 
                             src={meme.randomImage} 
                             alt="Random meme" 
-                            className="max-w-full rounded-lg shadow-lg"
+                            className="max-w-full rounded-lg shadow-lg cursor-crosshair"
+                            onClick={handleImageClick}
                         />
-                        <h2 className="absolute top-4 left-0 right-0 text-center text-4xl font-bold text-white uppercase tracking-wider text-outline">
-                            {meme.topText}
-                        </h2>
-                        <h2 className="absolute bottom-4 left-0 right-0 text-center text-4xl font-bold text-white uppercase tracking-wider text-outline">
-                            {meme.bottomText}
-                        </h2>
+                        {texts.map(t => (
+                            <div
+                                key={t.id}
+                                dir="ltr" contentEditable
+                                suppressContentEditableWarning
+                                className="absolute text-4xl font-bold text-white uppercase tracking-wider text-outline cursor-text select-text"
+                                style={{
+                                    direction: 'ltr',
+                                    unicodeBidi: 'normal',
+                                    left: `${t.xPct * 100}%`,
+                                    top: `${t.yPct * 100}%`,
+                                    transform: 'translate(-50%, -50%)',
+                                    whiteSpace: 'nowrap'
+                                }}
+                                onBlur={(e: React.FocusEvent<HTMLDivElement>) => {
+                                    const newText = (e.target as HTMLDivElement).textContent || '';
+                                    setTexts(prev => prev.map(item => item.id === t.id ? { ...item, text: newText } : item));
+                                }}
+                            >
+                                {t.text}
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>
