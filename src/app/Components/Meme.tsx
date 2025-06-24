@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import CopyImageButton from "./CopyImageButton"
 
 type MemeTemplate = {
     id: string;
@@ -80,10 +81,11 @@ export default function Meme() {
         <article className="w-full lg:w-1/2 mx-auto p-6 rounded-lg">
             <form className="flex flex-col gap-4 w-full">
                 <button 
+                    type="button"
                     onClick={getMemeImage}
-                    className="bg-gradient-to-r from-purple-600 to-blue-500 text-white font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity"
+                    className="w-full bg-gradient-to-r from-purple-600 to-blue-500 text-white font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity"
                 >
-                    Get a new meme image 🖼️
+                    New Image 🖼️
                 </button>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     <input 
@@ -101,6 +103,12 @@ export default function Meme() {
                         onChange={(e) => setMeme(prev => ({...prev, bottomText: e.target.value}))}
                     />
                 </div>
+                <CopyImageButton 
+                        imageUrl={meme.randomImage}
+                        topText={meme.topText}
+                        bottomText={meme.bottomText}
+                        disabled={!meme.randomImage}
+                    />
             </form>
             
             <div className="mt-8 relative flex justify-center">
