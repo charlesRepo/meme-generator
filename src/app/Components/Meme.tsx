@@ -17,7 +17,7 @@ type MemeTemplate = {
 
 export default function Meme() {
     const [meme, setMeme] = useState({
-        name: 'Default',
+        name: 'One does not simply',
         randomImage: 'https://i.imgflip.com/1bij.jpg', // Default meme
         width: 0,
         height: 0
@@ -106,21 +106,44 @@ export default function Meme() {
 
     // Handle dragging of text overlays
     useEffect(() => {
-        const handleMove = (e: MouseEvent) => {
+        const handleMove = (e: MouseEvent | TouchEvent) => {
             if (!dragId || !imgRef.current) return;
             const rect = imgRef.current.getBoundingClientRect();
-            const xPct = (e.clientX - rect.left) / rect.width;
-            const yPct = (e.clientY - rect.top) / rect.height;
+            
+            let clientX: number, clientY: number;
+            
+            if (e instanceof MouseEvent) {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            } else {
+                // Touch event
+                const touch = e.touches[0];
+                clientX = touch.clientX;
+                clientY = touch.clientY;
+            }
+            
+            const xPct = (clientX - rect.left) / rect.width;
+            const yPct = (clientY - rect.top) / rect.height;
             setTexts(prev => prev.map(t => t.id === dragId ? { ...t, xPct, yPct } : t));
         };
+        
         const handleUp = () => setDragId(null);
+        
         if (dragId) {
+            // Mouse events
             window.addEventListener('mousemove', handleMove);
             window.addEventListener('mouseup', handleUp, { once: true });
+            
+            // Touch events
+            window.addEventListener('touchmove', handleMove, { passive: false });
+            window.addEventListener('touchend', handleUp, { once: true });
         }
+        
         return () => {
             window.removeEventListener('mousemove', handleMove);
             window.removeEventListener('mouseup', handleUp);
+            window.removeEventListener('touchmove', handleMove);
+            window.removeEventListener('touchend', handleUp);
         };
     }, [dragId, setTexts]);
 
@@ -144,6 +167,22 @@ export default function Meme() {
         const rect = e.currentTarget.getBoundingClientRect();
         const xPct = (e.clientX - rect.left) / rect.width;
         const yPct = (e.clientY - rect.top) / rect.height;
+        setTexts(prev => [...prev, { 
+            id: crypto.randomUUID(), 
+            xPct, 
+            yPct, 
+            text: 'Text',
+            fontSize,
+            textAlign
+        }]);
+    }
+
+    const handleImageTouch = (e: React.TouchEvent<HTMLImageElement>) => {
+        e.preventDefault(); // Prevent default touch behavior
+        const rect = e.currentTarget.getBoundingClientRect();
+        const touch = e.touches[0];
+        const xPct = (touch.clientX - rect.left) / rect.width;
+        const yPct = (touch.clientY - rect.top) / rect.height;
         setTexts(prev => [...prev, { 
             id: crypto.randomUUID(), 
             xPct, 
@@ -260,11 +299,12 @@ export default function Meme() {
                             alt="Random meme" 
                             className="max-w-full rounded-lg shadow-lg cursor-crosshair"
                             onClick={handleImageClick}
+                            onTouchStart={handleImageTouch}
                         />
                         {texts.map(t => (
                             <div
                                 key={t.id} 
-                                className="relative"
+                                className="relative group"
                                 style={{
                                     position: 'absolute',
                                     left: `${t.xPct * 100}%`,
@@ -272,9 +312,30 @@ export default function Meme() {
                                     transform: 'translate(-50%, -50%)',
                                 }}
                             >
+                                {/* Move icon - appears on hover (desktop) and always visible on mobile */}
+                                <div
+                                    className="absolute -top-8 -left-8 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 cursor-move z-20 touch-manipulation"
+                                    onMouseDown={(e) => { 
+                                        e.preventDefault(); 
+                                        e.stopPropagation(); 
+                                        setDragId(t.id); 
+                                    }}
+                                    onTouchStart={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setDragId(t.id);
+                                    }}
+                                    title="Move text"
+                                >
+                                    <div className="w-8 h-8 md:w-6 md:h-6 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-full flex items-center justify-center shadow-lg transition-colors">
+                                        <svg className="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                                        </svg>
+                                    </div>
+                                </div>
+
                                 <div
                                     data-text-id={t.id}
-                                    onMouseDown={(e) => { e.stopPropagation(); setDragId(t.id); }}
                                     onFocus={() => handleTextFocus(t.id)}
                                     dir="ltr" 
                                     contentEditable
@@ -284,7 +345,6 @@ export default function Meme() {
                                         direction: 'ltr',
                                         unicodeBidi: 'normal',
                                         whiteSpace: 'nowrap',
-                                        cursor: dragId === t.id ? 'grabbing' : 'move',
                                         fontSize: `${t.fontSize}px`,
                                         textAlign: t.textAlign as any,
                                         minWidth: 'fit-content'
@@ -340,6 +400,15 @@ export default function Meme() {
                         2px -2px 0 #000,
                         -2px 2px 0 #000,
                         2px 2px 0 #000;
+                }
+                
+                /* Prevent text selection during drag on mobile */
+                .touch-manipulation {
+                    touch-action: manipulation;
+                    -webkit-user-select: none;
+                    -moz-user-select: none;
+                    -ms-user-select: none;
+                    user-select: none;
                 }
             `}
             </style>
