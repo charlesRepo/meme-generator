@@ -39,4 +39,4 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/deploym
 
 You can use the deployed app here:
 
-https://meme-generator-9bb1gcp01-charles-projects-c6138544.vercel.app/
+https://meme-generator-two-self.vercel.app/
