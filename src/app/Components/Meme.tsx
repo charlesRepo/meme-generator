@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import CopyImageButton from "./CopyImageButton"
 import GenerateMemeButton from "./GenerateMemeButton"
+import SuggestCaptionsButton from "./SuggestCaptionsButton"
 
 type MemeTemplate = {
     id: string;
@@ -15,6 +16,7 @@ type MemeTemplate = {
 
 export default function Meme() {
     const [meme, setMeme] = useState({
+        name: 'Default',
         randomImage: 'https://i.imgflip.com/1bij.jpg', // Default meme
         width: 0,
         height: 0
@@ -22,6 +24,10 @@ export default function Meme() {
     const [allMemes, setAllMemes] = useState<MemeTemplate[]>([]);
     type TextItem = { id: string; xPct: number; yPct: number; text: string };
     const [texts, setTexts] = useState<TextItem[]>([]);
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [loadingSuggest, setLoadingSuggest] = useState(false);
+    const [dragId, setDragId] = useState<string | null>(null);
+    const imgRef = useRef<HTMLImageElement | null>(null);
 
     useEffect(() => {
         // Fetch meme templates from Imgflip API
@@ -62,15 +68,56 @@ export default function Meme() {
             });
     }, []);
 
+    const fetchSuggestions = async () => {
+        if (!meme.randomImage) return;
+        setLoadingSuggest(true);
+        try {
+            console.log(meme.randomImage);
+            const prompt = `Meme template name: "${meme.name}". Give me one short funny meme caption for this meme with explaination why it is funny.`;
+            const res = await fetch('/api/groq', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt }),
+            });
+            const data = await res.json();
+            setSuggestions(data.suggestions || []);
+        } catch (err) {
+            console.error(err);
+            setSuggestions([]);
+        }
+        setLoadingSuggest(false);
+    };
+
+    // Handle dragging of text overlays
+    useEffect(() => {
+        const handleMove = (e: MouseEvent) => {
+            if (!dragId || !imgRef.current) return;
+            const rect = imgRef.current.getBoundingClientRect();
+            const xPct = (e.clientX - rect.left) / rect.width;
+            const yPct = (e.clientY - rect.top) / rect.height;
+            setTexts(prev => prev.map(t => t.id === dragId ? { ...t, xPct, yPct } : t));
+        };
+        const handleUp = () => setDragId(null);
+        if (dragId) {
+            window.addEventListener('mousemove', handleMove);
+            window.addEventListener('mouseup', handleUp, { once: true });
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleMove);
+            window.removeEventListener('mouseup', handleUp);
+        };
+    }, [dragId, setTexts]);
+
     const getMemeImage = (e: React.MouseEvent) => {
         e.preventDefault();
         if (allMemes.length === 0) return;
         
         const randomIndex = Math.floor(Math.random() * allMemes.length);
-        const { url, width, height } = allMemes[randomIndex];
+        const { url, width, height, name } = allMemes[randomIndex];
         
         setMeme(prevMeme => ({
             ...prevMeme,
+            name,
             randomImage: url,
             width,
             height
@@ -88,8 +135,32 @@ export default function Meme() {
         <article className="w-full lg:w-1/2 mx-auto p-6 rounded-lg">
             <form className="flex flex-col gap-4 w-full">
                 <GenerateMemeButton onClick={getMemeImage} />
-                
-                <p className="text-center text-gray-400 italic">Click on the image and write</p>
+
+                {/* Suggest captions section */}
+                <SuggestCaptionsButton
+                    onClick={fetchSuggestions}
+                    loading={loadingSuggest}
+                    disabled={!meme.randomImage}
+                />
+                {suggestions.length > 0 && (
+                    <div className="relative bg-gray-100 p-4 rounded-lg mt-2 space-y-2 text-black">
+                            <button
+                                type="button"
+                                onClick={() => setSuggestions([])}
+                                className="absolute top-1 right-1 text-gray-500 hover:text-gray-800 font-bold text-2xl leading-none"
+                            >
+                                ×
+                            </button>
+                        {suggestions.map((s, idx) => (
+                            <p
+                                key={idx}
+                                className="text-sm"
+                            >
+                                {s}
+                            </p>
+                        ))}
+                    </div>
+                )}
                 
                 <CopyImageButton 
                         imageUrl={meme.randomImage}
@@ -98,18 +169,20 @@ export default function Meme() {
                     />
             </form>
             
-            <div className="mt-8 relative flex justify-center">
+            <div className="mt-8">
+            <p className="text-center text-gray-400 italic p-4">Click on the image and write</p>
+                <div className="relative flex justify-center">
                 {meme.randomImage && (
                     <div className="relative">
                         <img 
-                            src={meme.randomImage} 
+                            ref={imgRef} src={meme.randomImage} 
                             alt="Random meme" 
                             className="max-w-full rounded-lg shadow-lg cursor-crosshair"
                             onClick={handleImageClick}
                         />
                         {texts.map(t => (
                             <div
-                                key={t.id}
+                                key={t.id} onMouseDown={(e) => { e.stopPropagation(); setDragId(t.id); }}
                                 dir="ltr" contentEditable
                                 suppressContentEditableWarning
                                 className="absolute text-4xl font-bold text-white uppercase tracking-wider text-outline cursor-text select-text"
@@ -119,7 +192,8 @@ export default function Meme() {
                                     left: `${t.xPct * 100}%`,
                                     top: `${t.yPct * 100}%`,
                                     transform: 'translate(-50%, -50%)',
-                                    whiteSpace: 'nowrap'
+                                    whiteSpace: 'nowrap',
+                                     cursor: dragId === t.id ? 'grabbing' : 'move'
                                 }}
                                 onBlur={(e: React.FocusEvent<HTMLDivElement>) => {
                                     const newText = (e.target as HTMLDivElement).textContent || '';
@@ -131,7 +205,9 @@ export default function Meme() {
                         ))}
                     </div>
                 )}
+                </div>
             </div>
+            
             
             <style jsx>{`
                 .text-outline {
