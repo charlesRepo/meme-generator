@@ -185,6 +185,13 @@ export default function Meme() {
         }
     }
 
+    const handleDeleteClick = (textId: string) => {
+        // Remove the text from the array
+        setTexts(prev => prev.filter(text => text.id !== textId));
+        // Clear the editing state
+        setEditingTextId(null);
+    }
+
     const handleFontSizeChange = (size: number) => {
         setFontSize(size);
         // Update all existing texts with new font size
@@ -288,18 +295,35 @@ export default function Meme() {
                                     {t.text}
                                 </div>
                                 
-                                {/* Checkmark button - only show when editing */}
+                                {/* Buttons - only show when editing this specific text */}
                                 {editingTextId === t.id && (
-                                    <button
-                                        type="button"
-                                        onClick={() => handleCheckmarkClick(t.id)}
-                                        className="absolute -bottom-6 -right-6 w-6 h-6 bg-green-500 hover:bg-green-600 text-white rounded-full flex items-center justify-center shadow-lg transition-colors"
-                                        style={{ zIndex: 10 }}
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                        </svg>
-                                    </button>
+                                    <div className="absolute -bottom-6 -right-6 flex gap-2" style={{ zIndex: 10 }}>
+                                        {/* Delete button */}
+                                        <button
+                                            type="button"
+                                            onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                handleDeleteClick(t.id);
+                                            }}
+                                            className="w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transition-colors"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                        
+                                        {/* Checkmark button */}
+                                        <button
+                                            type="button"
+                                            onClick={() => handleCheckmarkClick(t.id)}
+                                            className="w-6 h-6 bg-green-500 hover:bg-green-600 text-white rounded-full flex items-center justify-center shadow-lg transition-colors"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         ))}
