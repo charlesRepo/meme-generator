@@ -74,10 +74,15 @@ export default function Meme() {
         try {
             console.log(meme.randomImage);
             const prompt = `Meme template name: "${meme.name}". Give me one short funny meme caption for this meme with explaination why it is funny.`;
-            const res = await fetch('/api/groq', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt }),
+            const apiUrl =
+            process.env.NODE_ENV === 'production'
+                ? 'https://meme-generator-two-self.vercel.app/api/groq/'
+                : '/api/groq';
+
+            const res = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt }),
             });
             const data = await res.json();
             setSuggestions(data.suggestions || []);
