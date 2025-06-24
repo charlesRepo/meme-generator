@@ -2,7 +2,13 @@
 
 import { useRef } from 'react';
 
-type TextItem = { xPct: number; yPct: number; text: string };
+type TextItem = { 
+    xPct: number; 
+    yPct: number; 
+    text: string;
+    fontSize: number;
+    textAlign: string;
+};
 
 type CopyImageButtonProps = {
     imageUrl: string;
@@ -30,8 +36,8 @@ export default function CopyImageButton({ imageUrl, texts, disabled = false }: C
         
         // Draw user-added texts
         texts.forEach(item => {
-            ctx.font = 'bold 48px Impact';
-            ctx.textAlign = 'center';
+            ctx.font = `bold ${item.fontSize}px Impact`;
+            ctx.textAlign = item.textAlign as CanvasTextAlign;
             ctx.fillStyle = 'white';
             ctx.strokeStyle = 'black';
             ctx.lineWidth = 4;

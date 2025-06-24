@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import CopyImageButton from "./CopyImageButton"
 import GenerateMemeButton from "./GenerateMemeButton"
 import SuggestCaptionsButton from "./SuggestCaptionsButton"
+import FontControls from "./FontControls"
 
 type MemeTemplate = {
     id: string;
@@ -22,11 +23,21 @@ export default function Meme() {
         height: 0
     });
     const [allMemes, setAllMemes] = useState<MemeTemplate[]>([]);
-    type TextItem = { id: string; xPct: number; yPct: number; text: string };
+    type TextItem = { 
+        id: string; 
+        xPct: number; 
+        yPct: number; 
+        text: string;
+        fontSize: number;
+        textAlign: string;
+    };
     const [texts, setTexts] = useState<TextItem[]>([]);
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [loadingSuggest, setLoadingSuggest] = useState(false);
     const [dragId, setDragId] = useState<string | null>(null);
+    const [fontSize, setFontSize] = useState(48);
+    const [textAlign, setTextAlign] = useState('center');
+    const [editingTextId, setEditingTextId] = useState<string | null>(null);
     const imgRef = useRef<HTMLImageElement | null>(null);
 
     useEffect(() => {
@@ -133,13 +144,71 @@ export default function Meme() {
         const rect = e.currentTarget.getBoundingClientRect();
         const xPct = (e.clientX - rect.left) / rect.width;
         const yPct = (e.clientY - rect.top) / rect.height;
-        setTexts(prev => [...prev, { id: crypto.randomUUID(), xPct, yPct, text: 'Text' }]);
+        setTexts(prev => [...prev, { 
+            id: crypto.randomUUID(), 
+            xPct, 
+            yPct, 
+            text: 'Text',
+            fontSize,
+            textAlign
+        }]);
+    }
+
+    const handleTextKeyDown = (e: React.KeyboardEvent<HTMLDivElement>, textId: string) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            // Insert a line break instead of submitting
+            document.execCommand('insertLineBreak', false);
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            // Exit editing mode by blurring the element
+            (e.target as HTMLDivElement).blur();
+        }
+    }
+
+    const handleTextBlur = (e: React.FocusEvent<HTMLDivElement>, textId: string) => {
+        const newText = e.target.textContent || '';
+        setTexts(prev => prev.map(item => item.id === textId ? { ...item, text: newText } : item));
+        setEditingTextId(null);
+    }
+
+    const handleTextFocus = (textId: string) => {
+        setEditingTextId(textId);
+    }
+
+    const handleCheckmarkClick = (textId: string) => {
+        setEditingTextId(null);
+        // Find the text element and blur it
+        const textElement = document.querySelector(`[data-text-id="${textId}"]`) as HTMLDivElement;
+        if (textElement) {
+            textElement.blur();
+        }
+    }
+
+    const handleFontSizeChange = (size: number) => {
+        setFontSize(size);
+        // Update all existing texts with new font size
+        setTexts(prev => prev.map(text => ({ ...text, fontSize: size })));
+    }
+
+    const handleTextAlignChange = (align: string) => {
+        setTextAlign(align);
+        // Update all existing texts with new alignment
+        setTexts(prev => prev.map(text => ({ ...text, textAlign: align })));
     }
 
     return (
         <article className="w-full lg:w-1/2 mx-auto p-6 rounded-lg">
             <form className="flex flex-col gap-4 w-full">
                 <GenerateMemeButton onClick={getMemeImage} />
+
+                {/* Font Controls */}
+                <FontControls
+                    fontSize={fontSize}
+                    textAlign={textAlign}
+                    onFontSizeChange={handleFontSizeChange}
+                    onTextAlignChange={handleTextAlignChange}
+                />
 
                 {/* Suggest captions section */}
                 <SuggestCaptionsButton
@@ -187,25 +256,51 @@ export default function Meme() {
                         />
                         {texts.map(t => (
                             <div
-                                key={t.id} onMouseDown={(e) => { e.stopPropagation(); setDragId(t.id); }}
-                                dir="ltr" contentEditable
-                                suppressContentEditableWarning
-                                className="absolute text-4xl font-bold text-white uppercase tracking-wider text-outline cursor-text select-text"
+                                key={t.id} 
+                                className="relative"
                                 style={{
-                                    direction: 'ltr',
-                                    unicodeBidi: 'normal',
+                                    position: 'absolute',
                                     left: `${t.xPct * 100}%`,
                                     top: `${t.yPct * 100}%`,
                                     transform: 'translate(-50%, -50%)',
-                                    whiteSpace: 'nowrap',
-                                     cursor: dragId === t.id ? 'grabbing' : 'move'
-                                }}
-                                onBlur={(e: React.FocusEvent<HTMLDivElement>) => {
-                                    const newText = (e.target as HTMLDivElement).textContent || '';
-                                    setTexts(prev => prev.map(item => item.id === t.id ? { ...item, text: newText } : item));
                                 }}
                             >
-                                {t.text}
+                                <div
+                                    data-text-id={t.id}
+                                    onMouseDown={(e) => { e.stopPropagation(); setDragId(t.id); }}
+                                    onFocus={() => handleTextFocus(t.id)}
+                                    dir="ltr" 
+                                    contentEditable
+                                    suppressContentEditableWarning
+                                    className="font-bold text-white uppercase tracking-wider text-outline cursor-text select-text"
+                                    style={{
+                                        direction: 'ltr',
+                                        unicodeBidi: 'normal',
+                                        whiteSpace: 'nowrap',
+                                        cursor: dragId === t.id ? 'grabbing' : 'move',
+                                        fontSize: `${t.fontSize}px`,
+                                        textAlign: t.textAlign as any,
+                                        minWidth: 'fit-content'
+                                    }}
+                                    onKeyDown={(e) => handleTextKeyDown(e, t.id)}
+                                    onBlur={(e) => handleTextBlur(e, t.id)}
+                                >
+                                    {t.text}
+                                </div>
+                                
+                                {/* Checkmark button - only show when editing */}
+                                {editingTextId === t.id && (
+                                    <button
+                                        type="button"
+                                        onClick={() => handleCheckmarkClick(t.id)}
+                                        className="absolute -bottom-6 -right-6 w-6 h-6 bg-green-500 hover:bg-green-600 text-white rounded-full flex items-center justify-center shadow-lg transition-colors"
+                                        style={{ zIndex: 10 }}
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </button>
+                                )}
                             </div>
                         ))}
                     </div>
