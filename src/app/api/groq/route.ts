@@ -4,7 +4,7 @@ export async function OPTIONS() {
   return NextResponse.json({}, {
     status: 200,
     headers: {
-      'Access-Control-Allow-Origin': 'https://meme-generator-two-self.vercel.app',
+      'Access-Control-Allow-Origin': 'https://meme-generator-9bb1gcp01-charles-projects-c6138544.vercel.app',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
     },
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'GROQ_API_KEY not set' }, { 
       status: 500,
       headers: {
-        'Access-Control-Allow-Origin': 'https://meme-generator-two-self.vercel.app',
+        'Access-Control-Allow-Origin': 'https://meme-generator-9bb1gcp01-charles-projects-c6138544.vercel.app',
       }
     });
   }
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: text }, { 
       status: res.status,
       headers: {
-        'Access-Control-Allow-Origin': 'https://meme-generator-two-self.vercel.app',
+        'Access-Control-Allow-Origin': 'https://meme-generator-9bb1gcp01-charles-projects-c6138544.vercel.app',
       }
     });
   }
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ suggestions }, {
     headers: {
-      'Access-Control-Allow-Origin': 'https://meme-generator-two-self.vercel.app',
+      'Access-Control-Allow-Origin': 'https://meme-generator-9bb1gcp01-charles-projects-c6138544.vercel.app',
     },
   });
 }
