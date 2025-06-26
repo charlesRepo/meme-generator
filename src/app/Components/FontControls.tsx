@@ -3,16 +3,12 @@
 import { useState } from "react"
 
 interface FontControlsProps {
-  fontSize: number
   textAlign: string
-  onFontSizeChange: (size: number) => void
   onTextAlignChange: (align: string) => void
 }
 
 export default function FontControls({ 
-  fontSize, 
   textAlign, 
-  onFontSizeChange, 
   onTextAlignChange 
 }: FontControlsProps) {
   const [isOpen, setIsOpen] = useState(false)
@@ -30,7 +26,7 @@ export default function FontControls({
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between text-gray-700 font-medium py-2 px-3 rounded border hover:bg-gray-50"
       >
-        <span>Font Settings</span>
+        <span>Text Alignment</span>
         <svg 
           className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-90' : ''}`}
           fill="none" 
@@ -43,37 +39,6 @@ export default function FontControls({
 
       {isOpen && (
         <div className="mt-4 space-y-4">
-          {/* Font Size Control */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Font Size: {fontSize}px
-            </label>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => onFontSizeChange(Math.max(12, fontSize - 4))}
-                className="w-8 h-8 bg-gray-200 hover:bg-gray-300 rounded flex items-center justify-center text-gray-700"
-              >
-                -
-              </button>
-              <input
-                type="range"
-                min="12"
-                max="72"
-                value={fontSize}
-                onChange={(e) => onFontSizeChange(parseInt(e.target.value))}
-                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-              />
-              <button
-                type="button"
-                onClick={() => onFontSizeChange(Math.min(72, fontSize + 4))}
-                className="w-8 h-8 bg-gray-200 hover:bg-gray-300 rounded flex items-center justify-center text-gray-700"
-              >
-                +
-              </button>
-            </div>
-          </div>
-
           {/* Text Alignment Control */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">

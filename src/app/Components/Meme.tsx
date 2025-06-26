@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react"
 import CopyImageButton from "./CopyImageButton"
 import GenerateMemeButton from "./GenerateMemeButton"
 import SuggestCaptionsButton from "./SuggestCaptionsButton"
-import FontControls from "./FontControls"
 
 type MemeTemplate = {
     id: string;
@@ -30,13 +29,14 @@ export default function Meme() {
         text: string;
         fontSize: number;
         textAlign: string;
+        width: number;
+        height: number;
     };
     const [texts, setTexts] = useState<TextItem[]>([]);
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [loadingSuggest, setLoadingSuggest] = useState(false);
     const [dragId, setDragId] = useState<string | null>(null);
-    const [fontSize, setFontSize] = useState(48);
-    const [textAlign, setTextAlign] = useState('center');
+    const [resizeId, setResizeId] = useState<string | null>(null);
     const [editingTextId, setEditingTextId] = useState<string | null>(null);
     const imgRef = useRef<HTMLImageElement | null>(null);
 
@@ -147,6 +147,97 @@ export default function Meme() {
         };
     }, [dragId, setTexts]);
 
+    // Handle resizing of text overlays
+    useEffect(() => {
+        const handleResize = (e: MouseEvent | TouchEvent) => {
+            if (!resizeId || !imgRef.current) return;
+            const rect = imgRef.current.getBoundingClientRect();
+            
+            let clientX: number, clientY: number;
+            
+            if (e instanceof MouseEvent) {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            } else {
+                // Touch event
+                const touch = e.touches[0];
+                clientX = touch.clientX;
+                clientY = touch.clientY;
+            }
+            
+            // Calculate new width and height based on distance from center
+            const text = texts.find(t => t.id === resizeId);
+            if (!text) return;
+            
+            const centerX = text.xPct * rect.width + rect.left;
+            const centerY = text.yPct * rect.height + rect.top;
+            
+            const newWidth = Math.abs(clientX - centerX) * 2;
+            const newHeight = Math.abs(clientY - centerY) * 2;
+            
+            // Convert to percentage of image size
+            const widthPct = newWidth / rect.width;
+            const heightPct = newHeight / rect.height;
+            
+            // Calculate optimal font size based on new dimensions
+            const optimalFontSize = calculateOptimalFontSize(widthPct, heightPct, text.text);
+            
+            setTexts(prev => prev.map(t => t.id === resizeId ? { 
+                ...t, 
+                width: widthPct,
+                height: heightPct,
+                fontSize: optimalFontSize
+            } : t));
+        };
+        
+        const handleUp = () => setResizeId(null);
+        
+        if (resizeId) {
+            // Mouse events
+            window.addEventListener('mousemove', handleResize);
+            window.addEventListener('mouseup', handleUp, { once: true });
+            
+            // Touch events
+            window.addEventListener('touchmove', handleResize, { passive: false });
+            window.addEventListener('touchend', handleUp, { once: true });
+        }
+        
+        return () => {
+            window.removeEventListener('mousemove', handleResize);
+            window.removeEventListener('mouseup', handleUp);
+            window.removeEventListener('touchmove', handleResize);
+            window.removeEventListener('touchend', handleUp);
+        };
+    }, [resizeId, texts]);
+
+    // Calculate optimal font size based on text box dimensions
+    const calculateOptimalFontSize = (widthPct: number, heightPct: number, text: string): number => {
+        if (widthPct <= 0 || heightPct <= 0) return 48;
+        
+        // Base font size calculation on the smaller dimension to ensure text fits
+        const minDimension = Math.min(widthPct, heightPct);
+        
+        // Calculate base font size (percentage of image size)
+        let baseFontSize = minDimension * 100; // Convert to percentage
+        
+        // Adjust based on text length
+        const textLength = text.length;
+        if (textLength > 20) {
+            baseFontSize *= 0.7; // Reduce font size for longer text
+        } else if (textLength > 10) {
+            baseFontSize *= 0.85; // Slightly reduce for medium text
+        }
+        
+        // Convert to pixels (assuming image height as reference)
+        const fontSizeInPixels = baseFontSize * (imgRef.current?.height || 400) / 100;
+        
+        // Clamp between reasonable bounds
+        const minFontSize = 12;
+        const maxFontSize = 120;
+        
+        return Math.max(minFontSize, Math.min(maxFontSize, fontSizeInPixels));
+    };
+
     const getMemeImage = (e: React.MouseEvent) => {
         e.preventDefault();
         if (allMemes.length === 0) return;
@@ -172,8 +263,10 @@ export default function Meme() {
             xPct, 
             yPct, 
             text: 'Text',
-            fontSize,
-            textAlign
+            fontSize: 48,
+            textAlign: 'center',
+            width: 0,
+            height: 0
         }]);
     }
 
@@ -188,8 +281,10 @@ export default function Meme() {
             xPct, 
             yPct, 
             text: 'Text',
-            fontSize,
-            textAlign
+            fontSize: 48,
+            textAlign: 'center',
+            width: 0,
+            height: 0
         }]);
     }
 
@@ -231,30 +326,10 @@ export default function Meme() {
         setEditingTextId(null);
     }
 
-    const handleFontSizeChange = (size: number) => {
-        setFontSize(size);
-        // Update all existing texts with new font size
-        setTexts(prev => prev.map(text => ({ ...text, fontSize: size })));
-    }
-
-    const handleTextAlignChange = (align: string) => {
-        setTextAlign(align);
-        // Update all existing texts with new alignment
-        setTexts(prev => prev.map(text => ({ ...text, textAlign: align })));
-    }
-
     return (
         <article className="w-full lg:w-1/2 mx-auto p-6 rounded-lg">
             <form className="flex flex-col gap-4 w-full">
                 <GenerateMemeButton onClick={getMemeImage} />
-
-                {/* Font Controls */}
-                <FontControls
-                    fontSize={fontSize}
-                    textAlign={textAlign}
-                    onFontSizeChange={handleFontSizeChange}
-                    onTextAlignChange={handleTextAlignChange}
-                />
 
                 {/* Suggest captions section */}
                 <SuggestCaptionsButton
@@ -310,6 +385,8 @@ export default function Meme() {
                                     left: `${t.xPct * 100}%`,
                                     top: `${t.yPct * 100}%`,
                                     transform: 'translate(-50%, -50%)',
+                                    width: t.width > 0 ? `${t.width * 100}%` : 'auto',
+                                    height: t.height > 0 ? `${t.height * 100}%` : 'auto',
                                 }}
                             >
                                 {/* Move icon - appears on hover (desktop) and always visible on mobile */}
@@ -334,20 +411,80 @@ export default function Meme() {
                                     </div>
                                 </div>
 
+                                {/* Alignment handle - top right corner */}
+                                <div
+                                    className="absolute -top-8 -right-8 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 cursor-pointer z-20 touch-manipulation"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        // Cycle through alignment options
+                                        const alignments = ['left', 'center', 'right'];
+                                        const currentIndex = alignments.indexOf(t.textAlign);
+                                        const nextIndex = (currentIndex + 1) % alignments.length;
+                                        const newAlignment = alignments[nextIndex];
+                                        setTexts(prev => prev.map(text => 
+                                            text.id === t.id ? { ...text, textAlign: newAlignment } : text
+                                        ));
+                                    }}
+                                    title={`Text alignment: ${t.textAlign} (click to change)`}
+                                >
+                                    <div className="w-8 h-8 md:w-6 md:h-6 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-full flex items-center justify-center shadow-lg transition-colors">
+                                        {t.textAlign === 'left' && (
+                                            <svg className="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h10M4 18h6" />
+                                            </svg>
+                                        )}
+                                        {t.textAlign === 'center' && (
+                                            <svg className="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M6 12h12M8 18h8" />
+                                            </svg>
+                                        )}
+                                        {t.textAlign === 'right' && (
+                                            <svg className="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M10 12h10M14 18h6" />
+                                            </svg>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Resize handle - bottom right corner */}
+                                <div
+                                    className="absolute bottom-0 right-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 cursor-se-resize z-20 touch-manipulation"
+                                    onMouseDown={(e) => { 
+                                        e.preventDefault(); 
+                                        e.stopPropagation(); 
+                                        setResizeId(t.id); 
+                                    }}
+                                    onTouchStart={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setResizeId(t.id);
+                                    }}
+                                    title={t.width > 0 || t.height > 0 ? "Resize text box (auto font size)" : "Resize text box"}
+                                >
+                                    <div className={`w-6 h-6 ${t.width > 0 || t.height > 0 ? 'bg-purple-500 hover:bg-purple-600 active:bg-purple-700' : 'bg-green-500 hover:bg-green-600 active:bg-green-700'} text-white rounded-full flex items-center justify-center shadow-lg transition-colors`}>
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 17L17 7M17 7H7M17 7V17" />
+                                        </svg>
+                                    </div>
+                                </div>
+
                                 <div
                                     data-text-id={t.id}
                                     onFocus={() => handleTextFocus(t.id)}
                                     dir="ltr" 
                                     contentEditable
                                     suppressContentEditableWarning
-                                    className="font-bold text-white uppercase tracking-wider text-outline cursor-text select-text"
+                                    className="font-bold text-white uppercase tracking-wider text-outline cursor-text select-text w-full h-full flex items-center justify-center"
                                     style={{
                                         direction: 'ltr',
                                         unicodeBidi: 'normal',
-                                        whiteSpace: 'nowrap',
                                         fontSize: `${t.fontSize}px`,
                                         textAlign: t.textAlign as any,
-                                        minWidth: 'fit-content'
+                                        minWidth: 'fit-content',
+                                        minHeight: 'fit-content',
+                                        wordWrap: 'break-word',
+                                        overflowWrap: 'break-word'
                                     }}
                                     onKeyDown={(e) => handleTextKeyDown(e, t.id)}
                                     onBlur={(e) => handleTextBlur(e, t.id)}
